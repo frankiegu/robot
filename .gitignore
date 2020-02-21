@@ -2,4 +2,6 @@
 *swo
 .env
 .idea
+.DS_Store
 vendor/*
+processor/.DS_Store
