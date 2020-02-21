@@ -1,0 +1,25 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  CRService:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: 'custom runtime demo'
+      LogConfig:
+        Project: 'icarephone'
+        Logstore: 'robot'
+      Policies:
+        - AliyunLogFullAccess
+    robot:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        CodeUri: ./code.zip
+        Description: 'demo with custom runtime'
+        Runtime: custom
+      Events:
+        http_t:
+          Type: HTTP
+          Properties:
+            AuthType: ANONYMOUS
+            Methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD']
