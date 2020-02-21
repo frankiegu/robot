@@ -1,4 +1,4 @@
-package say_chat
+package drone_promote
 
 import (
 	"reflect"
@@ -12,22 +12,22 @@ func Test_decodeCmd(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *SayChatCmd
+		want *DronePromoteCmd
 	}{
 		{
 			"test promote cmd",
-			args{"hi"},
-			&SayChatCmd{"hi", map[string]string{}},
+			args{"32 test key=value"},
+			&DronePromoteCmd{32,"test",map[string]string{"key":"value"}},
 		},
 		{
 			"test promote cmd blanks",
-			args{"  hi key=value"},
-			&SayChatCmd{"hi", map[string]string{}},
+			args{"  32 test   key=value"},
+			&DronePromoteCmd{32,"test",map[string]string{"key":"value"}},
 		},
 		{
 			"test promote cmd blanks",
-			args{"  hi    key=value   "},
-			&SayChatCmd{"hi", map[string]string{}},
+			args{"  32 test   key=value   "},
+			&DronePromoteCmd{32,"test",map[string]string{"key":"value"}},
 		},
 	}
 	for _, tt := range tests {
@@ -51,12 +51,12 @@ func Test_splitMultiBlank(t *testing.T) {
 		{
 			"test split",
 			args{"  43 test   key=value"},
-			[]string{"43", "test", "key=value"},
+			[]string{"43","test","key=value"},
 		},
 		{
 			"test split 2",
 			args{"  43 test   key=value  "},
-			[]string{"43", "test", "key=value"},
+			[]string{"43","test","key=value"},
 		},
 	}
 	for _, tt := range tests {
