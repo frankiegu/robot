@@ -28,31 +28,48 @@ type DronePromote struct {
 }
 
 type DronePromoteCmd struct {
-	Build int
+	Build  int
 	Target string
 	Params map[string]string
 }
 
 // process command like /promote 42 test key=value
-func (d *DronePromote) Process(event issue.IssueEvent) error {
+func (d *DronePromote) Process(config issue.Config, event issue.IssueEvent) error {
 	d.env()
 	// new drone client
 	client := *d.client()
 	// decode command
 	cmd := decodeCmd(event.Command.Command)
-	name := *event.IssueCommentEvent.Repo.Name
-	lnamespace := strings.Split(*event.IssueCommentEvent.Repo.FullName,"/")
-	if len(lnamespace) != 2 {
-		return fmt.Errorf("get repo name failed:%s",*event.IssueCommentEvent.Repo.FullName)
+	if config.Git == "github" {
+		name := *event.IssueCommentEvent.GitHub.Repo.Name
+		lnamespace := strings.Split(*event.IssueCommentEvent.GitHub.Repo.FullName, "/")
+		if len(lnamespace) != 2 {
+			return fmt.Errorf("get repo name failed:%s", *event.IssueCommentEvent.GitHub.Repo.FullName)
+		}
+		namespace := lnamespace[0]
+		fmt.Println("promte info : ", namespace, name, cmd.Build, cmd.Target, cmd.Params)
+		// drone promote
+		_, err := client.Promote(namespace, name, cmd.Build, cmd.Target, cmd.Params)
+		if err != nil {
+			fmt.Errorf("promote failed : %s\n", err)
+			return err
+		}
+	} else {
+		name := event.IssueCommentEvent.GoGs.Repository.Name
+		lnamespace := strings.Split(event.IssueCommentEvent.GoGs.Repository.FullName, "/")
+		if len(lnamespace) != 2 {
+			return fmt.Errorf("get repo name failed:%s", event.IssueCommentEvent.GoGs.Repository.FullName)
+		}
+		namespace := lnamespace[0]
+		fmt.Println("promte info : ", namespace, name, cmd.Build, cmd.Target, cmd.Params)
+		// drone promote
+		_, err := client.Promote(namespace, name, cmd.Build, cmd.Target, cmd.Params)
+		if err != nil {
+			fmt.Errorf("promote failed : %s\n", err)
+			return err
+		}
 	}
-	namespace := lnamespace[0]
-	fmt.Println("promte info : ",namespace,name,cmd.Build,cmd.Target,cmd.Params)
-	// drone promote
-	_,err := client.Promote(namespace,name,cmd.Build,cmd.Target,cmd.Params)
-	if err != nil {
-		fmt.Errorf("promote failed : %s\n",err)
-		return err
-	}
+
 	return nil
 }
 
@@ -61,20 +78,20 @@ func (d *DronePromote) Process(event issue.IssueEvent) error {
 // Target:test
 // Para:key:value
 // Para is optional
-func decodeCmd(s string) *DronePromoteCmd{
+func decodeCmd(s string) *DronePromoteCmd {
 	var err error
 	cmd := &DronePromoteCmd{}
 	split := splitMultiBlank(s)
 	if len(split) < 2 {
 		return nil
 	}
-	cmd.Build,err = strconv.Atoi(split[0])
+	cmd.Build, err = strconv.Atoi(split[0])
 	if err != nil {
 		return nil
 	}
 	cmd.Target = split[1]
-	for _,p := range split[2:] {
-		t := strings.Split(p,"=")
+	for _, p := range split[2:] {
+		t := strings.Split(p, "=")
 		if len(t) == 2 {
 			if cmd.Params == nil {
 				cmd.Params = make(map[string]string)
@@ -87,13 +104,13 @@ func decodeCmd(s string) *DronePromoteCmd{
 
 func splitMultiBlank(s string) []string {
 	var res []string
-	i,j := 0,0
-	for ;i<len(s) && j <len(s); {
+	i, j := 0, 0
+	for ; i < len(s) && j < len(s); {
 		if s[i] == ' ' {
 			i++
 			j++
 		}
-		if j <len(s) && s[j] != ' ' {
+		if j < len(s) && s[j] != ' ' {
 			j++
 			if j >= len(s) {
 				res = append(res, s[i:j])
@@ -102,7 +119,7 @@ func splitMultiBlank(s string) []string {
 		} else if j > i {
 			res = append(res, s[i:j])
 			j++
-			i=j
+			i = j
 		}
 	}
 	return res

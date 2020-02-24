@@ -1,4 +1,5 @@
 package main
+
 import (
 	"encoding/json"
 	"fmt"
@@ -9,41 +10,76 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
+
 func handler(w http.ResponseWriter, req *http.Request) {
-	b,err := ioutil.ReadAll(req.Body)
-	event := &issue.IssueCommentEvent{}
-	value,err := url.ParseQuery(string(b))
-	eventstr := []byte(value.Get("payload"))
-	if len(eventstr) == 0 {
-		return
-	}
-	err = json.Unmarshal(eventstr,event)
-	if err != nil {
-		fmt.Printf("decode event error : %s",err)
-		return
-	}
-	fmt.Printf("repo name is : %s body: %s/n",*event.Repo.FullName, *event.Comment.Body)
-	config := issue.NewConfig("", "")
-	issue.Regist("/say", &say_chat.SayChat{"", ""})
-	issue.Regist("/promote", &drone_promote.DronePromote{"", ""})
-	err = issue.Process(config, *event)
-	if err != nil {
-		fmt.Printf("promote error %s",err)
+	b, err := ioutil.ReadAll(req.Body)
+	value, err := url.ParseQuery(string(b))
+	git := value.Get("payload")
+	if strings.Contains(git, "github.com") {
+		event := &issue.IssueCommentEvent{}
+		eventstr := []byte(git)
+		if len(eventstr) == 0 {
+			return
+		}
+		err = json.Unmarshal(eventstr, &event.GitHub)
+		if err != nil {
+			fmt.Printf("decode event error : %s", err)
+			return
+		}
+		fmt.Printf("repo name is : %s body: %s/n", *event.GitHub.Repo.FullName, *event.GitHub.Comment.Body)
+		config := issue.NewConfig("", "", "github")
+		issue.Regist("/say", &say_chat.SayChat{"", ""})
+		issue.Regist("/promote", &drone_promote.DronePromote{"", ""})
+		err = issue.Process(config, *event)
+		if err != nil {
+			fmt.Printf("promote error %s", err)
+		}
+	} else {
+		event := &issue.IssueCommentEvent{}
+		eventstr := []byte(git)
+		if len(eventstr) == 0 {
+			return
+		}
+		err = json.Unmarshal(eventstr, &event.GoGs)
+		if err != nil {
+			fmt.Printf("decode event error : %s", err)
+			return
+		}
+		fmt.Printf("repo name is : %s body: %s/n", event.GoGs.Repository.FullName, event.GoGs.Comment.Body)
+		config := issue.NewConfig("", "", "gogs")
+		issue.Regist("/say", &say_chat.SayChat{"http://openapi.tuling123.com/openapi/api/v2", "sqeven"})
+		err = issue.Process(config, *event)
+		if err != nil {
+			fmt.Printf("promote error %s", err)
+		}
 	}
 }
 
-func promoteEvent(body []byte) *issue.IssueCommentEvent{
+func promoteEvent(body []byte) *issue.IssueCommentEvent {
 	event := &issue.IssueCommentEvent{}
-	json.Unmarshal(body,event)
-	config := issue.NewConfig("", "")
-	issue.Regist("/say", &say_chat.SayChat{"", ""})
-	issue.Regist("/promote", &drone_promote.DronePromote{"", ""})
-	err := issue.Process(config, *event)
-	if err != nil {
-		fmt.Printf("promote error %s",err)
-		return nil
+	if strings.Contains(string(body), "github.com") {
+		json.Unmarshal(body, event)
+		config := issue.NewConfig("", "", "github")
+		issue.Regist("/say", &say_chat.SayChat{"", ""})
+		issue.Regist("/promote", &drone_promote.DronePromote{"", ""})
+		err := issue.Process(config, *event)
+		if err != nil {
+			fmt.Printf("promote error %s", err)
+			return nil
+		}
+	} else {
+		json.Unmarshal(body, event)
+		config := issue.NewConfig("", "", "gogs")
+		issue.Regist("/say", &say_chat.SayChat{"", ""})
+		err := issue.Process(config, *event)
+		if err != nil {
+			fmt.Printf("promote error %s", err)
+			return nil
+		}
 	}
+
 	return event
 }
 
@@ -54,5 +90,5 @@ func main() {
 	if port == "" {
 		port = "9000"
 	}
-	http.ListenAndServe(":" + port, nil)
+	http.ListenAndServe(":"+port, nil)
 }

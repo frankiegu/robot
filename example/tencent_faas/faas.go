@@ -12,7 +12,7 @@ import (
 
 func hello(ctx context.Context, event issue.IssueCommentEvent) (string, error) {
 	// or using env: GITHUB_USER GITHUB_PASSWD
-	config := issue.NewConfig("ops-robot", "xxx")
+	config := issue.NewConfig("ops-robot", "xxx", "github")
 	// regist what robot your need, and the robot config
 	issue.Regist("promote", &drone_promote.DronePromote{"https://cloud.drone.io", "QSp93SmhZVpJAmb7tWPuWIOh3qs6BhuI"})
 	err := issue.Process(config, event)

@@ -218,9 +218,8 @@ func Test_promoteEvent(t *testing.T) {
 	for _, tt := range tests {
 		fmt.Println(os.Getenv("GITHUB_USER"))
 		e := promoteEvent(tt.args.body)
-		if *e.Repo.FullName != "sqeven/testgit" {
-			t.Errorf("%s",*e.Repo.FullName)
+		if *e.GitHub.Repo.FullName != "sqeven/testgit" {
+			t.Errorf("%s", *e.GitHub.Repo.FullName)
 		}
 	}
 }
-

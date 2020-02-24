@@ -5,10 +5,19 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gogs/go-gogs-client"
 	"github.com/google/go-github/github"
 )
 
-type IssueCommentEvent github.IssueCommentEvent
+type IssueCommentEvent struct {
+	GitHub github.IssueCommentEvent
+	GoGs   gogs.IssueCommentPayload
+}
+
+type GitClient struct {
+	GitHub *github.Client
+	GoGs   *gogs.Client
+}
 
 type Command struct {
 	Type    string
@@ -18,48 +27,63 @@ type Command struct {
 type IssueEvent struct {
 	*IssueCommentEvent
 	Command *Command
-	Client  *github.Client
+	Client  *GitClient
 }
 
 var robot map[string]Robot
 
 type Robot interface {
-	Process(event IssueEvent) error
+	Process(config Config, event IssueEvent) error
 }
 
-// github user config
 type Config struct {
 	UserName string
 	Password string
 	Token    string
+	Git      string
 }
 
-func NewConfig(user string, passwd string) Config {
+func NewConfig(user string, passwd string, git string) Config {
 	if user == "" {
-		user = os.Getenv("GITHUB_USER")
+		if git == "github" {
+			user = os.Getenv("GITHUB_USER")
+		} else {
+			user = os.Getenv("GOGS_URL")
+		}
 	}
 	if passwd == "" {
-		passwd = os.Getenv("GITHUB_PASSWD")
+		if git == "github" {
+			passwd = os.Getenv("GITHUB_PASSWD")
+		} else {
+			passwd = os.Getenv("GOGS_TOKEN")
+		}
 	}
-	return Config{UserName: user, Password: passwd}
+	return Config{UserName: user, Password: passwd, Git: git}
 }
 
-func NewGitClient(config Config)  *github.Client{
+func NewGitClient(config Config) *GitClient {
+	gitClient := new(GitClient)
+	//GitHub
 	tp := github.BasicAuthTransport{
 		Username: config.UserName,
 		Password: config.Password,
 	}
-	return github.NewClient(tp.Client())
+	gitClient.GitHub = github.NewClient(tp.Client())
+	// GoGs
+	gitClient.GoGs = gogs.NewClient(config.UserName, config.Password)
+	return gitClient
 }
 
 func Process(config Config, event IssueCommentEvent) error {
-	tp := github.BasicAuthTransport{
-		Username: config.UserName,
-		Password: config.Password,
-	}
-	client := github.NewClient(tp.Client())
+	commands := []*Command{}
+	client := NewGitClient(config)
 	//decode commands
-	commands := decodeFromBody(event.Comment.Body)
+	if config.Git == "github" {
+		commands = decodeFromBody(event.GitHub.Comment.Body)
+	} else {
+		commands = decodeFromBody(&event.GoGs.Comment.Body)
+	}
+
 	fmt.Println("commands from body:", commands)
 
 	for _, command := range commands {
@@ -70,7 +94,7 @@ func Process(config Config, event IssueCommentEvent) error {
 		}
 		fmt.Println("process command", command.Type, command.Command)
 		if v, ok := robot[command.Type]; ok {
-			v.Process(issueEvent)
+			v.Process(config, issueEvent)
 		}
 	}
 
